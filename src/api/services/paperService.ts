@@ -6,13 +6,13 @@ import type { Paper, PaperQueryParams, PaperListResponse } from '@/types'
  */
 export async function getPapers(params?: PaperQueryParams): Promise<Paper[]> {
     try {
-        const response = await apiClient.get<PaperListResponse>('/papers/', {
+        const response = (await apiClient.get<PaperListResponse>('/papers/', {
             params: {
                 start_date: params?.start_date,
                 max_results: params?.max_results || 100,
                 category: params?.category
             }
-        })
+        })) as unknown as PaperListResponse
 
         return response.papers
     } catch (error) {

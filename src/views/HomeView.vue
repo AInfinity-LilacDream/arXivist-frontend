@@ -123,7 +123,8 @@ const fetchPapers = async () => {
     }
 
     const result = await getPapers(params)
-    papers.value = result
+    console.log('Fetched papers:', result)
+    papers.value = Array.isArray(result) ? result : []
   } catch (error) {
     console.error('Failed to fetch papers:', error)
     papers.value = []
