@@ -265,33 +265,36 @@ const handleAddSuccess = () => {
   justify-content: flex-end;
 }
 
-.paper-footer-btn :deep(.btn-ghost) {
+.paper-footer-btn {
   color: #ffffff;
 }
 
-.paper-footer-btn :deep(.btn-ghost:hover:not(:disabled)) {
+.paper-footer-btn :hover {
   background: rgba(255, 255, 255, 0.1);
   color: #ffffff;
 }
 
-.paper-footer-btn :deep(.btn-outline) {
-  border: 2px solid #ffffff;
-  color: #ffffff;
+.paper-footer-btn.btn-outline {
+  background: transparent !important;
+  border: 2px solid #ffffff !important;
+  color: #ffffff !important;
 }
 
-.paper-footer-btn :deep(.btn-outline:hover:not(:disabled)) {
-  background: #1a1a1a;
-  border-color: #ffffff;
-  color: #ffffff;
+.paper-footer-btn.btn-outline:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: #ffffff !important;
+  color: #ffffff !important;
 }
 
-.paper-footer-btn :deep(.btn-primary) {
-  background: #ffffff;
-  color: #000000;
+.paper-footer-btn.btn-primary {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #ffffff !important;
 }
 
-.paper-footer-btn :deep(.btn-primary:hover:not(:disabled)) {
-  background: #f0f0f0;
-  color: #000000;
+.paper-footer-btn.btn-primary:hover:not(:disabled) {
+  background: #f0f0f0 !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
 }
 </style>

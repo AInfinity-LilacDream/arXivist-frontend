@@ -16,7 +16,7 @@
 .header {
   background: #000000;
   color: white;
-  padding: 1.5rem 0;
+  padding: 1rem 0;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   border-bottom-left-radius: 2rem;
   border-bottom-right-radius: 2rem;
@@ -35,14 +35,14 @@
 
 .header-logo h1 {
   margin: 0;
-  font-size: 2rem;
+  font-size: 1.75rem;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
 
 .header-subtitle {
-  margin: 0.5rem 0 0;
-  font-size: 0.9375rem;
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
   opacity: 0.9;
   font-weight: 400;
 }

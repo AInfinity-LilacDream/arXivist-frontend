@@ -160,13 +160,14 @@ const handleSubmit = () => {
 }
 
 .dialog-container {
-  background: white;
+  background: #000000;
   border-radius: 0.75rem;
   width: 90%;
   max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
+  border: 1px solid #333333;
 }
 
 .dialog-header {
@@ -174,21 +175,21 @@ const handleSubmit = () => {
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #333333;
 }
 
 .dialog-title {
   margin: 0;
   font-size: 1.25rem;
   font-weight: 600;
-  color: #1f2937;
+  color: #ffffff;
 }
 
 .dialog-close {
   background: none;
   border: none;
   font-size: 1.5rem;
-  color: #6b7280;
+  color: #a0a0a0;
   cursor: pointer;
   padding: 0;
   width: 2rem;
@@ -201,8 +202,8 @@ const handleSubmit = () => {
 }
 
 .dialog-close:hover {
-  background: #f3f4f6;
-  color: #1f2937;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
 }
 
 .dialog-content {
@@ -218,30 +219,37 @@ const handleSubmit = () => {
   margin-bottom: 0.5rem;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #374151;
+  color: #ffffff;
 }
 
 .form-input,
 .form-textarea {
   width: 100%;
   padding: 0.75rem 1rem;
-  border: 2px solid #e5e7eb;
+  border: 2px solid #333333;
   border-radius: 0.5rem;
   font-size: 1rem;
   transition: all 0.2s;
   font-family: inherit;
+  background: #1a1a1a;
+  color: #ffffff;
+}
+
+.form-input::placeholder,
+.form-textarea::placeholder {
+  color: #666666;
 }
 
 .form-input:hover:not(:disabled),
 .form-textarea:hover:not(:disabled) {
-  border-color: #667eea;
+  border-color: #555555;
 }
 
 .form-input:focus,
 .form-textarea:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
 }
 
 .form-input:disabled,
@@ -257,10 +265,10 @@ const handleSubmit = () => {
 
 .error-message {
   padding: 0.75rem 1rem;
-  background: #fee2e2;
-  border: 1px solid #fecaca;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
   border-radius: 0.5rem;
-  color: #dc2626;
+  color: #ef4444;
   font-size: 0.875rem;
   margin-bottom: 1rem;
 }
@@ -270,6 +278,30 @@ const handleSubmit = () => {
   gap: 0.75rem;
   justify-content: flex-end;
   margin-top: 1.5rem;
+}
+
+.dialog-actions .btn-outline {
+  background: transparent !important;
+  border: 2px solid #ffffff !important;
+  color: #ffffff !important;
+}
+
+.dialog-actions .btn-outline:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+.dialog-actions .btn-primary {
+  background: #ffffff !important;
+  border: 2px solid #ffffff !important;
+  color: #000000 !important;
+}
+
+.dialog-actions .btn-primary:hover:not(:disabled) {
+  background: #f0f0f0 !important;
+  border-color: #ffffff !important;
+  color: #000000 !important;
 }
 </style>
 

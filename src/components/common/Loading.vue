@@ -40,8 +40,8 @@ withDefaults(defineProps<Props>(), {
 .spinner {
   width: 50px;
   height: 50px;
-  border: 4px solid #e5e7eb;
-  border-top-color: #667eea;
+  border: 4px solid #333333;
+  border-top-color: #ffffff;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin: 0 auto 1rem;

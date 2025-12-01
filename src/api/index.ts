@@ -81,6 +81,7 @@ apiClient.interceptors.response.use(
                         if (originalRequest.headers && token) {
                             originalRequest.headers.Authorization = `Bearer ${token}`
                         }
+                        // 重新发送原始请求，使用新的token
                         return apiClient(originalRequest)
                     })
                     .catch(err => {
@@ -110,11 +111,16 @@ apiClient.interceptors.response.use(
                 )
 
                 // 处理响应数据
-                let tokens: { access_token: string; refresh_token: string }
+                let tokens: { access_token: string; refresh_token: string } | null = null
                 if (refreshResponse.data && typeof refreshResponse.data === 'object' && 'data' in refreshResponse.data) {
                     tokens = (refreshResponse.data as any).data
                 } else {
                     tokens = refreshResponse.data
+                }
+
+                // 验证tokens是否有效
+                if (!tokens || !tokens.access_token || !tokens.refresh_token) {
+                    throw new Error('Invalid token response format')
                 }
 
                 // 保存新的token

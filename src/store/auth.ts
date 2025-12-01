@@ -28,6 +28,9 @@ export const useAuthStore = defineStore('auth', () => {
 
   // 保存 token 到 localStorage
   const saveTokens = (tokens: TokenResponse) => {
+    if (!tokens || !tokens.access_token || !tokens.refresh_token) {
+      throw new Error('Invalid token response: missing access_token or refresh_token')
+    }
     accessToken.value = tokens.access_token
     refreshTokenValue.value = tokens.refresh_token
     localStorage.setItem('access_token', tokens.access_token)

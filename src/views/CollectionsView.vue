@@ -181,7 +181,7 @@ onMounted(() => {
   margin: 0;
   font-size: 1.75rem;
   font-weight: 700;
-  color: #1f2937;
+  color: #ffffff;
 }
 
 .loading-container,
@@ -191,14 +191,14 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   min-height: 400px;
-  color: #6b7280;
+  color: #a0a0a0;
 }
 
 .spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid #e5e7eb;
-  border-top-color: #667eea;
+  border: 3px solid #333333;
+  border-top-color: #ffffff;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin-bottom: 1rem;
@@ -239,12 +239,12 @@ onMounted(() => {
   margin: 0 0 0.75rem;
   font-size: 1.25rem;
   font-weight: 600;
-  color: #1f2937;
+  color: #ffffff;
 }
 
 .collection-description {
   margin: 0 0 1rem;
-  color: #6b7280;
+  color: #c0c0c0;
   font-size: 0.9375rem;
   line-height: 1.6;
   display: -webkit-box;
@@ -259,20 +259,34 @@ onMounted(() => {
   align-items: center;
   margin-bottom: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid #333;
   font-size: 0.875rem;
-  color: #6b7280;
+  color: #a0a0a0;
 }
 
 .collection-count {
   font-weight: 500;
-  color: #667eea;
+  color: #ffffff;
 }
 
 .collection-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.6rem;
   justify-content: flex-end;
+  padding-top: 1rem;
+}
+
+.collections-header :deep(.btn-primary) {
+  background: transparent !important;
+  color: #ffffff !important;
+  border: 2px solid #ffffff !important;
+}
+
+.collections-header :deep(.btn-primary:hover:not(:disabled)) {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: #ffffff !important;
+  transform: none;
+  box-shadow: none;
 }
 
 @media (max-width: 768px) {

@@ -194,14 +194,14 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   min-height: 400px;
-  color: #6b7280;
+  color: #a0a0a0;
 }
 
 .spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid #e5e7eb;
-  border-top-color: #667eea;
+  border: 3px solid #333333;
+  border-top-color: #ffffff;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin-bottom: 1rem;
@@ -219,9 +219,9 @@ onMounted(() => {
   align-items: flex-start;
   margin-bottom: 2rem;
   padding: 1.5rem;
-  background: white;
+  background: #000000;
   border-radius: 0.75rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #333333;
 }
 
 .collection-info {
@@ -232,12 +232,12 @@ onMounted(() => {
   margin: 0 0 0.75rem;
   font-size: 1.75rem;
   font-weight: 700;
-  color: #1f2937;
+  color: #ffffff;
 }
 
 .collection-description {
   margin: 0 0 1rem;
-  color: #6b7280;
+  color: #c0c0c0;
   font-size: 1rem;
   line-height: 1.6;
 }
@@ -246,7 +246,7 @@ onMounted(() => {
   display: flex;
   gap: 1.5rem;
   font-size: 0.875rem;
-  color: #6b7280;
+  color: #a0a0a0;
 }
 
 .collection-header-actions {
@@ -254,14 +254,50 @@ onMounted(() => {
   gap: 0.75rem;
 }
 
+.collection-header-actions .btn-outline {
+  background: transparent !important;
+  border: 2px solid #ffffff !important;
+  color: #ffffff !important;
+}
+
+.collection-header-actions .btn-outline:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+.collection-header-actions .btn-secondary {
+  background: transparent !important;
+  border: 2px solid #ef4444 !important;
+  color: #ef4444 !important;
+}
+
+.collection-header-actions .btn-secondary:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.1) !important;
+  border-color: #ef4444 !important;
+  color: #ef4444 !important;
+}
+
 .empty-papers {
   text-align: center;
   padding: 3rem;
-  color: #6b7280;
+  color: #a0a0a0;
 }
 
 .papers-section {
   margin-top: 2rem;
+}
+
+.error-container .btn-primary {
+  background: #ffffff !important;
+  border: 2px solid #ffffff !important;
+  color: #000000 !important;
+}
+
+.error-container .btn-primary:hover:not(:disabled) {
+  background: #f0f0f0 !important;
+  border-color: #ffffff !important;
+  color: #000000 !important;
 }
 
 @media (max-width: 768px) {

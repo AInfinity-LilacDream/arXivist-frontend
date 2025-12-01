@@ -114,11 +114,37 @@ const handleLogin = async () => {
     const redirect = router.currentRoute.value.query.redirect as string
     router.push(redirect || '/')
   } catch (err: any) {
-    // 处理错误
+    // 处理错误，使用友好的提示信息
+    // 后端可能返回200状态码，但响应中包含错误信息
     if (err.response?.data?.message) {
-      error.value = err.response.data.message
+      const backendMessage = err.response.data.message
+      // 将后端错误信息转换为更友好的提示
+      if (backendMessage.includes('Invalid') || backendMessage.includes('invalid') || 
+          backendMessage.includes('错误') || backendMessage.includes('不正确')) {
+        error.value = '邮箱或密码错误，请检查后重试'
+      } else if (backendMessage.includes('not found') || backendMessage.includes('不存在') ||
+                 backendMessage.includes('未找到')) {
+        error.value = '该邮箱未注册，请先注册账号'
+      } else if (backendMessage.includes('password') || backendMessage.includes('密码')) {
+        error.value = '密码错误，请检查后重试'
+      } else {
+        error.value = backendMessage
+      }
     } else if (err.message) {
-      error.value = err.message
+      // 检查错误消息
+      if (err.message.includes('登录失败')) {
+        error.value = err.message
+      } else if (err.message.includes('Network') || err.message.includes('network')) {
+        error.value = '网络连接失败，请检查网络后重试'
+      } else if (err.message.includes('timeout')) {
+        error.value = '请求超时，请稍后重试'
+      } else {
+        error.value = '登录失败，请检查邮箱和密码'
+      }
+    } else if (err.response?.status === 401) {
+      error.value = '邮箱或密码错误，请检查后重试'
+    } else if (err.response?.status === 400) {
+      error.value = '请输入有效的邮箱和密码'
     } else {
       error.value = '登录失败，请检查邮箱和密码'
     }

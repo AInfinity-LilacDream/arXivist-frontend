@@ -1,6 +1,7 @@
 <template>
-  <div v-if="visible" class="dialog-overlay" @click="handleOverlayClick">
-    <div class="dialog-container" @click.stop>
+  <Teleport to="body">
+    <div v-if="visible" class="dialog-overlay" @click="handleOverlayClick">
+      <div class="dialog-container" @click.stop>
       <div class="dialog-header">
         <h3 class="dialog-title">添加到收藏夹</h3>
         <button class="dialog-close" @click="handleClose">×</button>
@@ -59,11 +60,12 @@
         </div>
       </div>
     </div>
-  </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getCollections, addPaperToCollection } from '@/api/services/collectionService'
 import type { CollectionInfo } from '@/types'
@@ -110,6 +112,11 @@ watch(
       selectedCollectionId.value = null
       error.value = ''
       loadCollections()
+      // 阻止背景滚动和交互
+      document.body.style.overflow = 'hidden'
+    } else {
+      // 恢复背景滚动
+      document.body.style.overflow = ''
     }
   }
 )
@@ -159,7 +166,13 @@ const handleOverlayClick = () => {
 onMounted(() => {
   if (props.visible) {
     loadCollections()
+    document.body.style.overflow = 'hidden'
   }
+})
+
+onUnmounted(() => {
+  // 确保组件销毁时恢复滚动
+  document.body.style.overflow = ''
 })
 </script>
 
@@ -174,18 +187,25 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 10000;
   backdrop-filter: blur(4px);
+  pointer-events: auto;
+  /* 确保遮罩层捕获所有鼠标事件，阻止背景元素响应 */
+  cursor: default;
 }
 
 .dialog-container {
-  background: white;
+  background: #000000;
   border-radius: 0.75rem;
   width: 90%;
   max-width: 600px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
+  border: 1px solid #333333;
+  pointer-events: auto;
+  position: relative;
+  z-index: 10001;
 }
 
 .dialog-header {
@@ -193,21 +213,21 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #333333;
 }
 
 .dialog-title {
   margin: 0;
   font-size: 1.25rem;
   font-weight: 600;
-  color: #1f2937;
+  color: #ffffff;
 }
 
 .dialog-close {
   background: none;
   border: none;
   font-size: 1.5rem;
-  color: #6b7280;
+  color: #a0a0a0;
   cursor: pointer;
   padding: 0;
   width: 2rem;
@@ -220,8 +240,8 @@ onMounted(() => {
 }
 
 .dialog-close:hover {
-  background: #f3f4f6;
-  color: #1f2937;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
 }
 
 .dialog-content {
@@ -235,14 +255,14 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   padding: 3rem;
-  color: #6b7280;
+  color: #a0a0a0;
 }
 
 .spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid #e5e7eb;
-  border-top-color: #667eea;
+  border: 3px solid #333333;
+  border-top-color: #ffffff;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin-bottom: 1rem;
@@ -265,21 +285,22 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 1rem;
-  border: 2px solid #e5e7eb;
+  border: 2px solid #333333;
   border-radius: 0.5rem;
   margin-bottom: 0.75rem;
   cursor: pointer;
   transition: all 0.2s;
+  background: #1a1a1a;
 }
 
 .collection-item:hover {
-  border-color: #667eea;
-  background: #f9fafb;
+  border-color: #555555;
+  background: #252525;
 }
 
 .collection-item-selected {
-  border-color: #667eea;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  border-color: #ffffff;
+  background: #252525;
 }
 
 .collection-item-info {
@@ -290,13 +311,13 @@ onMounted(() => {
   margin: 0 0 0.25rem;
   font-size: 1rem;
   font-weight: 600;
-  color: #1f2937;
+  color: #ffffff;
 }
 
 .collection-item-description {
   margin: 0 0 0.5rem;
   font-size: 0.875rem;
-  color: #6b7280;
+  color: #c0c0c0;
   display: -webkit-box;
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
@@ -305,21 +326,21 @@ onMounted(() => {
 
 .collection-item-count {
   font-size: 0.75rem;
-  color: #9ca3af;
+  color: #a0a0a0;
 }
 
 .collection-item-check {
   font-size: 1.5rem;
-  color: #667eea;
+  color: #ffffff;
   font-weight: bold;
 }
 
 .error-message {
   padding: 0.75rem 1rem;
-  background: #fee2e2;
-  border: 1px solid #fecaca;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
   border-radius: 0.5rem;
-  color: #dc2626;
+  color: #ef4444;
   font-size: 0.875rem;
   margin-bottom: 1rem;
 }
@@ -329,6 +350,57 @@ onMounted(() => {
   gap: 0.75rem;
   justify-content: flex-end;
   margin-top: 1.5rem;
+}
+
+.dialog-actions .btn-outline {
+  background: transparent !important;
+  border: 2px solid #ffffff !important;
+  color: #ffffff !important;
+}
+
+.dialog-actions .btn-outline:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+.dialog-actions .btn-primary {
+  background: #ffffff !important;
+  border: 2px solid #ffffff !important;
+  color: #000000 !important;
+}
+
+.dialog-actions .btn-primary:hover:not(:disabled) {
+  background: #f0f0f0 !important;
+  border-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+.empty-collections .btn-primary {
+  background: #ffffff !important;
+  border: 2px solid #ffffff !important;
+  color: #000000 !important;
+}
+
+.empty-collections .btn-primary:hover:not(:disabled) {
+  background: #f0f0f0 !important;
+  border-color: #ffffff !important;
+  color: #000000 !important;
+}
+</style>
+
+<style>
+/* 当对话框打开时，阻止背景元素的交互 */
+body:has(.dialog-overlay) > *:not(.dialog-overlay) {
+  pointer-events: none !important;
+}
+
+body:has(.dialog-overlay) .dialog-overlay {
+  pointer-events: auto !important;
+}
+
+body:has(.dialog-overlay) .dialog-overlay * {
+  pointer-events: auto !important;
 }
 </style>
 
