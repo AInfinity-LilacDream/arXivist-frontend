@@ -20,5 +20,5 @@ export const ARXIV_CATEGORIES = [
 /**
  * 默认查询参数
  */
-export const DEFAULT_MAX_RESULTS = 100
+export const DEFAULT_MAX_RESULTS = 10
 export const MAX_RESULTS_LIMIT = 2000

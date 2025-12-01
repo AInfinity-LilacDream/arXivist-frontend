@@ -11,9 +11,10 @@
 
     <div v-else class="paper-list-content">
       <PaperCard
-        v-for="paper in papers"
+        v-for="(paper, index) in papers"
         :key="paper.arxiv_id"
         :paper="paper"
+        :rank="index + 1"
       />
     </div>
   </div>

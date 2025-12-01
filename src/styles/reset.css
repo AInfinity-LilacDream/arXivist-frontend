@@ -45,6 +45,22 @@ textarea {
   font-size: inherit;
 }
 
+/* 数字输入框spinner控件重置 - Chrome/Safari */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* 数字输入框spinner控件重置 - Firefox */
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+input[type="number"]::-moz-number-spin-box {
+  display: none;
+}
+
 /* 列表重置 */
 ul,
 ol {

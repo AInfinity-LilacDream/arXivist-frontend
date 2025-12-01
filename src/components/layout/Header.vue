@@ -10,21 +10,27 @@
 </template>
 
 <script setup lang="ts">
-// Header组件
 </script>
 
 <style scoped>
 .header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #000000;
   color: white;
-  padding: 2rem 0;
+  padding: 1.5rem 0;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-bottom-left-radius: 2rem;
+  border-bottom-right-radius: 2rem;
+  position: relative;
+  z-index: 20;
 }
 
 .header-container {
-  max-width: 1200px;
+  max-width: 100%;
   margin: 0 auto;
   padding: 0 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .header-logo h1 {
@@ -39,5 +45,13 @@
   font-size: 0.9375rem;
   opacity: 0.9;
   font-weight: 400;
+}
+
+@media (max-width: 768px) {
+  .header-container {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
 }
 </style>
