@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { getPaperDetail, startAIScoreTask, getAIScoreTaskStatus } from '@/api/services/paperService'
-import type { PaperDetail, AISummary } from '@/types'
+import type { PaperDetail, AISummary, Paper, PaperQueryParams } from '@/types'
 
 export const usePaperStore = defineStore('paper', () => {
   // 论文详情缓存，key为arxiv_id
@@ -21,6 +21,14 @@ export const usePaperStore = defineStore('paper', () => {
   
   // 轮询间隔器，key为arxiv_id
   const pollingIntervals = ref<Map<string, ReturnType<typeof setInterval>>>(new Map())
+
+  // 搜索结果缓存，key为搜索条件的序列化字符串，value为论文列表
+  interface SearchCacheEntry {
+    papers: Paper[]
+    timestamp: number
+  }
+  const searchResultsCache = ref<Map<string, SearchCacheEntry>>(new Map())
+  const CACHE_EXPIRY_TIME = 1000 * 60 * 60 // 缓存过期时间：1小时
 
   /**
    * 获取论文详情（优先从缓存获取）
@@ -90,12 +98,17 @@ export const usePaperStore = defineStore('paper', () => {
    * 轮询AI评分任务状态
    */
   const pollAIScoreTask = async (arxivId: string, taskId: string): Promise<void> => {
+    console.log(`[pollAIScoreTask] Starting polling for ${arxivId}, task_id: ${taskId}`)
+    
     const poll = async () => {
       try {
+        console.log(`[pollAIScoreTask] Polling status for ${arxivId}, task_id: ${taskId}`)
         const status = await getAIScoreTaskStatus(taskId)
+        console.log(`[pollAIScoreTask] Status for ${arxivId}:`, status.status)
         
         if (status.status === 'completed' && status.result) {
           // 任务完成，保存结果并停止轮询
+          console.log(`[pollAIScoreTask] Task completed for ${arxivId}`)
           aiScoreCache.value.set(arxivId, status.result)
           loadingAIScores.value.delete(arxivId)
           pollingTasks.value.delete(arxivId)
@@ -107,7 +120,7 @@ export const usePaperStore = defineStore('paper', () => {
           }
         } else if (status.status === 'failed') {
           // 任务失败，停止轮询
-          console.error(`AI score task failed for ${arxivId}:`, status.error)
+          console.error(`[pollAIScoreTask] Task failed for ${arxivId}:`, status.error)
           loadingAIScores.value.delete(arxivId)
           pollingTasks.value.delete(arxivId)
           
@@ -116,10 +129,12 @@ export const usePaperStore = defineStore('paper', () => {
             clearInterval(interval)
             pollingIntervals.value.delete(arxivId)
           }
+        } else {
+          // pending 或 processing 状态继续轮询
+          console.log(`[pollAIScoreTask] Task ${status.status} for ${arxivId}, will continue polling`)
         }
-        // pending 或 processing 状态继续轮询
       } catch (error) {
-        console.error(`Failed to poll AI score task for ${arxivId}:`, error)
+        console.error(`[pollAIScoreTask] Failed to poll AI score task for ${arxivId}:`, error)
         // 轮询失败，停止轮询
         loadingAIScores.value.delete(arxivId)
         pollingTasks.value.delete(arxivId)
@@ -138,6 +153,7 @@ export const usePaperStore = defineStore('paper', () => {
     // 设置轮询间隔（每2秒轮询一次）
     const interval = setInterval(poll, 2000)
     pollingIntervals.value.set(arxivId, interval)
+    console.log(`[pollAIScoreTask] Polling interval set for ${arxivId}`)
   }
 
   /**
@@ -146,23 +162,27 @@ export const usePaperStore = defineStore('paper', () => {
   const startAIScoreTaskAsync = async (arxivId: string): Promise<void> => {
     // 如果缓存中有，直接返回
     if (aiScoreCache.value.has(arxivId)) {
+      console.log(`[startAIScoreTaskAsync] ${arxivId} already has cached score, skipping`)
       return
     }
 
     // 如果正在加载或轮询，不重复启动
     if (loadingAIScores.value.has(arxivId) || pollingTasks.value.has(arxivId)) {
+      console.log(`[startAIScoreTaskAsync] ${arxivId} is already loading or polling, skipping`)
       return
     }
 
+    console.log(`[startAIScoreTaskAsync] Starting task for ${arxivId}`)
     loadingAIScores.value.add(arxivId)
     
     try {
       const taskResponse = await startAIScoreTask(arxivId)
+      console.log(`[startAIScoreTaskAsync] Task started for ${arxivId}, task_id: ${taskResponse.task_id}`)
       pollingTasks.value.set(arxivId, taskResponse.task_id)
       // 开始轮询
       await pollAIScoreTask(arxivId, taskResponse.task_id)
     } catch (error) {
-      console.error(`Failed to start AI score task for ${arxivId}:`, error)
+      console.error(`[startAIScoreTaskAsync] Failed to start AI score task for ${arxivId}:`, error)
       loadingAIScores.value.delete(arxivId)
     }
   }
@@ -211,7 +231,13 @@ export const usePaperStore = defineStore('paper', () => {
       !pollingTasks.value.has(id)
     )
     
+    console.log('[batchGetAIScores] Total papers:', arxivIds.length, 'To fetch:', idsToFetch.length)
+    console.log('[batchGetAIScores] Cached:', arxivIds.filter(id => aiScoreCache.value.has(id)).length)
+    console.log('[batchGetAIScores] Loading:', arxivIds.filter(id => loadingAIScores.value.has(id)).length)
+    console.log('[batchGetAIScores] Polling:', arxivIds.filter(id => pollingTasks.value.has(id)).length)
+    
     if (idsToFetch.length === 0) {
+      console.log('[batchGetAIScores] No papers to fetch, skipping')
       return
     }
 
@@ -219,9 +245,13 @@ export const usePaperStore = defineStore('paper', () => {
     const batchSize = 10 // 每次并发10个任务
     for (let i = 0; i < idsToFetch.length; i += batchSize) {
       const batch = idsToFetch.slice(i, i + batchSize)
+      console.log('[batchGetAIScores] Starting batch:', batch)
       // 并行启动所有任务，不等待完成
       Promise.allSettled(
-        batch.map(arxivId => startAIScoreTaskAsync(arxivId))
+        batch.map(arxivId => {
+          console.log('[batchGetAIScores] Starting task for:', arxivId)
+          return startAIScoreTaskAsync(arxivId)
+        })
       )
     }
   }
@@ -248,11 +278,69 @@ export const usePaperStore = defineStore('paper', () => {
   }
 
   /**
+   * 停止所有轮询任务
+   */
+  const stopAllPolling = () => {
+    // 清除所有轮询间隔器
+    pollingIntervals.value.forEach(interval => clearInterval(interval))
+    pollingIntervals.value.clear()
+    // 清除轮询任务记录
+    pollingTasks.value.clear()
+    // 清除加载状态，允许重新启动任务
+    loadingAIScores.value.clear()
+  }
+
+  /**
+   * 生成搜索条件的缓存key
+   */
+  const generateSearchCacheKey = (params: PaperQueryParams): string => {
+    const { start_date, category, max_results } = params
+    return JSON.stringify({
+      start_date: start_date || '',
+      category: category || '',
+      max_results: max_results || 100
+    })
+  }
+
+  /**
+   * 获取缓存的搜索结果
+   */
+  const getCachedSearchResults = (params: PaperQueryParams): Paper[] | null => {
+    const cacheKey = generateSearchCacheKey(params)
+    const cached = searchResultsCache.value.get(cacheKey)
+    
+    if (!cached) {
+      return null
+    }
+    
+    // 检查缓存是否过期
+    const now = Date.now()
+    if (now - cached.timestamp > CACHE_EXPIRY_TIME) {
+      searchResultsCache.value.delete(cacheKey)
+      return null
+    }
+    
+    return cached.papers
+  }
+
+  /**
+   * 缓存搜索结果
+   */
+  const cacheSearchResults = (params: PaperQueryParams, papers: Paper[]): void => {
+    const cacheKey = generateSearchCacheKey(params)
+    searchResultsCache.value.set(cacheKey, {
+      papers: [...papers], // 深拷贝，避免引用问题
+      timestamp: Date.now()
+    })
+  }
+
+  /**
    * 清除缓存
    */
   const clearCache = () => {
     paperDetailsCache.value.clear()
     aiScoreCache.value.clear()
+    searchResultsCache.value.clear()
     // 清除所有轮询间隔器
     pollingIntervals.value.forEach(interval => clearInterval(interval))
     pollingIntervals.value.clear()
@@ -273,6 +361,9 @@ export const usePaperStore = defineStore('paper', () => {
     batchGetAIScores,
     getCachedAIScore,
     startAIScoreTaskAsync,
+    stopAllPolling,
+    getCachedSearchResults,
+    cacheSearchResults,
     clearCache
   }
 })

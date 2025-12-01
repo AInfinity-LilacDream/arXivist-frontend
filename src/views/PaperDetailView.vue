@@ -391,6 +391,12 @@ watch(
   gap: 1.5rem;
 }
 
+/* 黑色风格卡片 */
+.paper-detail :deep(.card) {
+  background: #000000 !important;
+  color: #ffffff;
+}
+
 .paper-info-card {
   padding: 2rem;
 }
@@ -402,7 +408,7 @@ watch(
 .paper-title {
   font-size: 1.875rem;
   font-weight: 700;
-  color: #1f2937;
+  color: #ffffff;
   margin: 0 0 1rem;
   line-height: 1.3;
 }
@@ -412,7 +418,7 @@ watch(
   gap: 1rem;
   align-items: center;
   font-size: 0.875rem;
-  color: #6b7280;
+  color: #cccccc;
 }
 
 .paper-authors-section,
@@ -423,12 +429,12 @@ watch(
 .section-title {
   font-size: 1rem;
   font-weight: 600;
-  color: #374151;
+  color: #ffffff;
   margin: 0 0 0.75rem;
 }
 
 .authors-list {
-  color: #4b5563;
+  color: #cccccc;
   line-height: 1.6;
 }
 
@@ -461,12 +467,12 @@ watch(
 .card-title {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #1f2937;
+  color: #ffffff;
   margin: 0 0 1rem;
 }
 
 .paper-abstract {
-  color: #4b5563;
+  color: #cccccc;
   line-height: 1.8;
   font-size: 1rem;
   white-space: pre-wrap;
@@ -535,13 +541,13 @@ watch(
 
 .score-name {
   font-size: 0.9375rem;
-  color: #4b5563;
+  color: #cccccc;
   font-weight: 500;
 }
 
 .score-bar {
   height: 8px;
-  background: #e5e7eb;
+  background: #333333;
   border-radius: 4px;
   overflow: hidden;
   position: relative;
@@ -558,7 +564,7 @@ watch(
 
 .score-number {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: #cccccc;
   text-align: right;
   font-weight: 500;
 }
@@ -566,13 +572,13 @@ watch(
 .summary-section,
 .reasoning-section {
   padding: 1.5rem;
-  background: #f9fafb;
+  background: #1a1a1a;
   border-radius: 0.5rem;
 }
 
 .summary-text,
 .reasoning-text {
-  color: #4b5563;
+  color: #cccccc;
   line-height: 1.8;
   margin: 0;
 }
@@ -584,12 +590,12 @@ watch(
 }
 
 .strengths-section {
-  background: #f0fdf4;
+  background: #1a2e1a;
   border-left: 4px solid #22c55e;
 }
 
 .weaknesses-section {
-  background: #fef2f2;
+  background: #2e1a1a;
   border-left: 4px solid #ef4444;
 }
 
@@ -597,7 +603,7 @@ watch(
 .weaknesses-list {
   margin: 0;
   padding-left: 1.5rem;
-  color: #4b5563;
+  color: #cccccc;
   line-height: 1.8;
 }
 
@@ -611,7 +617,7 @@ watch(
 
 .recommendation-section {
   padding: 1.5rem;
-  background: #f9fafb;
+  background: #1a1a1a;
   border-radius: 0.5rem;
 }
 
@@ -624,19 +630,19 @@ watch(
 }
 
 .recommendation-badge.recommended {
-  background: #dbeafe;
-  color: #1e40af;
+  background: #1a2a3a;
+  color: #60a5fa;
 }
 
 .recommendation-badge.highly-recommended {
-  background: #dcfce7;
-  color: #166534;
+  background: #1a2e1a;
+  color: #4ade80;
 }
 
 .token-usage-section {
   margin-top: 1.5rem;
   padding-top: 1.5rem;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid #333333;
 }
 
 .token-usage-details {
@@ -645,7 +651,7 @@ watch(
 
 .token-usage-summary {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: #cccccc;
   font-weight: 500;
   list-style: none;
 }
@@ -676,7 +682,7 @@ watch(
   display: flex;
   justify-content: space-between;
   font-size: 0.875rem;
-  color: #4b5563;
+  color: #cccccc;
 }
 
 .ai-score-skeleton {
