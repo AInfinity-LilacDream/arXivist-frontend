@@ -15,4 +15,12 @@ app.use(router)
 const authStore = useAuthStore()
 authStore.initAuth()
 
+// 监听token失效事件，自动跳转到登录页
+window.addEventListener('auth:logout', () => {
+  authStore.clearTokens()
+  if (router.currentRoute.value.name !== 'login') {
+    router.push({ name: 'login', query: { redirect: router.currentRoute.value.fullPath } })
+  }
+})
+
 app.mount('#app')
