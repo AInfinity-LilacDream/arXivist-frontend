@@ -102,11 +102,11 @@ const handleClick = (event: MouseEvent) => {
 
 .btn-ghost {
     background: transparent;
-    color: #667eea;
+    color: #ffffff;
 }
 
 .btn-ghost:hover:not(:disabled) {
-    background: rgba(102, 126, 234, 0.1);
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .btn-spinner {

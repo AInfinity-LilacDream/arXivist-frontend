@@ -162,7 +162,7 @@ onMounted(() => {
   margin: 0 0 2rem;
   font-size: 1.75rem;
   font-weight: 700;
-  color: #1f2937;
+  color: #ffffff;
 }
 
 .loading-container {
@@ -187,7 +187,7 @@ onMounted(() => {
 }
 
 .loading-text {
-  color: #6b7280;
+  color: #a0a0a0;
   font-size: 1rem;
   margin: 0;
 }
@@ -215,7 +215,7 @@ onMounted(() => {
   flex-direction: column;
   gap: 0.5rem;
   padding-bottom: 1.5rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #333;
 }
 
 .info-item:last-child {
@@ -225,7 +225,7 @@ onMounted(() => {
 .info-label {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #6b7280;
+  color: #a0a0a0;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -233,7 +233,7 @@ onMounted(() => {
 .info-value {
   font-size: 1.125rem;
   font-weight: 500;
-  color: #1f2937;
+  color: #ffffff;
 }
 
 .status-badge {
@@ -245,13 +245,13 @@ onMounted(() => {
 }
 
 .status-active {
-  background: #d1fae5;
-  color: #065f46;
+  background: #1a2e1a;
+  color: #86efac;
 }
 
 .status-inactive {
-  background: #fee2e2;
-  color: #991b1b;
+  background: #2e1a1a;
+  color: #ff6b6b;
 }
 
 .profile-actions {
@@ -267,7 +267,7 @@ onMounted(() => {
 
 .error-text {
   margin: 0 0 1.5rem;
-  color: #6b7280;
+  color: #a0a0a0;
   font-size: 1rem;
 }
 

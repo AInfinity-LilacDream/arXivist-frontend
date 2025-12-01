@@ -77,8 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, onMounted, watch } from 'vue'
 import { getPapers } from '@/api/services/paperService'
 import { getTodayString } from '@/utils/format'
 import { ARXIV_CATEGORIES, DEFAULT_MAX_RESULTS } from '@/utils/constants'
@@ -91,7 +90,6 @@ import Select from '@/components/common/Select.vue'
 import PaperList from '@/components/paper/PaperList.vue'
 
 const paperStore = usePaperStore()
-const route = useRoute()
 
 // 响应式数据
 const papers = ref<Paper[]>([])
@@ -216,37 +214,11 @@ const fetchPapers = async () => {
       category: filters.value.category || undefined
     }
 
-    // 先检查缓存
-    const cachedPapers = paperStore.getCachedSearchResults(params)
-    if (cachedPapers) {
-      console.log('Using cached search results')
-      const papersList = cachedPapers
-      
-      // 先合并缓存中的AI评分并显示
-      const papersWithCachedScores = papersList.map(mergePaperWithAIScore)
-      papers.value = sortPapersByScore(papersWithCachedScores)
-      
-      // 检查并启动未完成的AI评分任务（不阻塞页面显示）
-      loadingDetails.value = true
-      checkAndRestartAIScoreTasks()
-      
-      // 监听store中的AI评分缓存变化，自动更新论文列表
-      // 这个watch已经在下面定义了，会自动处理更新
-      loadingDetails.value = false
-      
-      loading.value = false
-      return
-    }
-
-    // 缓存中没有，调用API
     const result = await getPapers(params)
     console.log('Fetched papers:', result)
     console.log('Result type:', typeof result, 'Is array:', Array.isArray(result))
     const papersList = Array.isArray(result) ? result : []
     console.log('Papers list length:', papersList.length)
-    
-    // 缓存搜索结果
-    paperStore.cacheSearchResults(params, papersList)
     
     // 先显示论文列表（不等待AI评分）
     papers.value = papersList
@@ -296,85 +268,9 @@ watch(
   { deep: true }
 )
 
-// 检查并重新启动未完成的评分任务
-const checkAndRestartAIScoreTasks = () => {
-  if (papers.value.length === 0) {
-    return
-  }
-  
-  // 先合并缓存中的AI评分
-  const papersWithCachedScores = papers.value.map(mergePaperWithAIScore)
-  
-  // 找出还没有评分的论文ID（检查缓存中也没有）
-  const papersWithoutScore = papersWithCachedScores
-    .filter(paper => {
-      // 检查当前论文对象是否有评分
-      const hasScore = paper.ai_summary?.score !== null && 
-                       paper.ai_summary?.score !== undefined
-      const hasDetailScore = paper.ai_summary?.detail?.total_score !== null && 
-                             paper.ai_summary?.detail?.total_score !== undefined
-      
-      // 如果当前没有评分，再检查store缓存中是否有
-      if (!hasScore && !hasDetailScore) {
-        const cachedScore = paperStore.getCachedAIScore(paper.arxiv_id)
-        return !cachedScore
-      }
-      
-      return false
-    })
-    .map(paper => paper.arxiv_id)
-  
-  // 如果有未评分的论文，重新启动评分任务
-  if (papersWithoutScore.length > 0) {
-    console.log('Restarting AI score tasks for papers without scores:', papersWithoutScore.length)
-    paperStore.batchGetAIScores(papersWithoutScore)
-  }
-}
-
-// 监听路由变化，离开主页时停止轮询，回到主页时重新启动未完成的任务
-const previousRouteName = ref<string | symbol | undefined>(undefined)
-const isComponentMounted = ref(false)
-
-watch(
-  () => route.name,
-  (newRouteName) => {
-    const isHome = newRouteName === 'home'
-    const prevWasNotHome = previousRouteName.value && previousRouteName.value !== 'home'
-    
-    if (!isHome) {
-      // 如果离开主页，停止所有轮询任务
-      paperStore.stopAllPolling()
-    } else if (prevWasNotHome && isHome && isComponentMounted.value) {
-      // 如果从其他页面回到主页，且组件已挂载，检查并重新启动未完成的评分任务
-      // 使用 nextTick 确保组件已经更新
-      nextTick(() => {
-        // 延迟一点确保 papers.value 已经更新
-        setTimeout(() => {
-          checkAndRestartAIScoreTasks()
-        }, 200)
-      })
-    }
-    
-    // 更新 previousRouteName
-    previousRouteName.value = newRouteName
-  },
-  { immediate: true }
-)
-
 // 组件挂载时自动加载
-onMounted(async () => {
-  isComponentMounted.value = true
-  await fetchPapers()
-  // 组件挂载后检查并重新启动未完成的评分任务（只在首次挂载时执行）
-  await nextTick()
-  setTimeout(() => {
-    checkAndRestartAIScoreTasks()
-  }, 300)
-})
-
-// 组件卸载时停止轮询
-onBeforeUnmount(() => {
-  paperStore.stopAllPolling()
+onMounted(() => {
+  fetchPapers()
 })
 </script>
 
@@ -468,6 +364,16 @@ onBeforeUnmount(() => {
   color: #ffffff;
 }
 
+/* 修改日期选择器的日历图标为白色 */
+.date-input::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+}
+
+.date-input::-webkit-calendar-picker-indicator:hover {
+  opacity: 0.8;
+}
+
 .date-input:hover,
 .number-input:hover {
   border-color: #555555;
@@ -523,6 +429,7 @@ onBeforeUnmount(() => {
 /* Firefox */
 .number-input[type="number"] {
   -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 .number-input::-moz-number-spin-box {

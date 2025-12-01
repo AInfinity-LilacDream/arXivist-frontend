@@ -131,7 +131,7 @@ const handleLogin = async () => {
 <style scoped>
 .login-view {
   min-height: 100vh;
-  background: #e5e5e5;
+  background: #2d2d2d;
 }
 
 .main-content {

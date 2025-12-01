@@ -160,7 +160,7 @@ const handleRegister = async () => {
 <style scoped>
 .register-view {
   min-height: 100vh;
-  background: #f9fafb;
+  background: #2d2d2d;
 }
 
 .main-content {
@@ -190,13 +190,13 @@ const handleRegister = async () => {
   margin: 0 0 0.5rem;
   font-size: 2rem;
   font-weight: 700;
-  color: #1f2937;
+  color: #ffffff;
   text-align: center;
 }
 
 .auth-subtitle {
   margin: 0 0 2rem;
-  color: #6b7280;
+  color: #a0a0a0;
   text-align: center;
   font-size: 0.9375rem;
 }
@@ -216,27 +216,27 @@ const handleRegister = async () => {
 .form-label {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #374151;
+  color: #ffffff;
 }
 
 .form-input {
   padding: 0.75rem 1rem;
-  border: 2px solid #e5e7eb;
+  border: 2px solid #333;
   border-radius: 0.5rem;
   font-size: 1rem;
   transition: all 0.2s;
-  background: white;
-  color: #1f2937;
+  background: #1a1a1a;
+  color: #ffffff;
 }
 
 .form-input:hover:not(:disabled) {
-  border-color: #667eea;
+  border-color: #555;
 }
 
 .form-input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
 }
 
 .form-input:disabled {
@@ -247,15 +247,15 @@ const handleRegister = async () => {
 .form-hint {
   margin: 0;
   font-size: 0.75rem;
-  color: #6b7280;
+  color: #a0a0a0;
 }
 
 .error-message {
   padding: 0.75rem 1rem;
-  background: #fee2e2;
-  border: 1px solid #fecaca;
+  background: #2a1a1a;
+  border: 1px solid #4a2a2a;
   border-radius: 0.5rem;
-  color: #dc2626;
+  color: #ff6b6b;
   font-size: 0.875rem;
 }
 
@@ -274,19 +274,19 @@ const handleRegister = async () => {
 
 .auth-footer-text {
   margin: 0;
-  color: #6b7280;
+  color: #a0a0a0;
   font-size: 0.875rem;
 }
 
 .auth-link {
-  color: #667eea;
+  color: #999999;
   text-decoration: none;
   font-weight: 500;
   transition: color 0.2s;
 }
 
 .auth-link:hover {
-  color: #764ba2;
+  color: #ffffff;
   text-decoration: underline;
 }
 </style>

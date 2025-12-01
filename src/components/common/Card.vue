@@ -20,15 +20,16 @@ withDefaults(defineProps<Props>(), {
 
 <style scoped>
 .card {
-    background: white;
+    background: #1a1a1a;
     border-radius: 0.75rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     overflow: hidden;
     transition: all 0.3s ease;
+    border: 1px solid #333;
 }
 
 .card-hover:hover {
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
     transform: translateY(-2px);
 }
 

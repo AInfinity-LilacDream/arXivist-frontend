@@ -302,22 +302,58 @@ const fetchPaperDetail = async () => {
   }
 }
 
-// 监听store中的缓存变化，自动更新paper
+// 使用computed来获取当前论文的AI评分，确保响应式更新
+const currentAIScore = computed(() => {
+  if (!paper.value) return null
+  return paperStore.getCachedAIScore(paper.value.arxiv_id)
+})
+
+// 监听AI评分内容的变化（通过computed）
 watch(
-  () => [paperStore.paperDetailsCache, paperStore.aiScoreCache],
-  () => {
-    const arxivId = route.params.arxiv_id as string
-    if (arxivId && paper.value) {
-      const updated = paperStore.getCachedPaperDetail(arxivId)
-      const updatedScore = paperStore.getCachedAIScore(arxivId)
-      if (updated) {
-        paper.value = { ...updated, ai_summary: updatedScore || updated.ai_summary }
-      } else if (updatedScore && paper.value) {
-        paper.value.ai_summary = updatedScore
-      }
+  currentAIScore,
+  (newScore) => {
+    if (newScore && paper.value) {
+      // 创建新对象确保响应式更新
+      paper.value.ai_summary = { ...newScore }
     }
   },
-  { deep: true }
+  { immediate: true, deep: true }
+)
+
+// 监听loadingAIScores的变化，当加载完成时检查是否有新的评分
+watch(
+  () => {
+    if (!paper.value) return false
+    return paperStore.loadingAIScores.has(paper.value.arxiv_id)
+  },
+  (isLoading, wasLoading) => {
+    // 当从加载中变为加载完成时，检查是否有新的评分
+    if (wasLoading && !isLoading && paper.value) {
+      const arxivId = paper.value.arxiv_id
+      const updatedScore = paperStore.getCachedAIScore(arxivId)
+      if (updatedScore) {
+        paper.value.ai_summary = { ...updatedScore }
+      }
+    }
+  }
+)
+
+// 监听aiScoreCache的size变化，当有新评分时更新
+watch(
+  () => paperStore.aiScoreCache.size,
+  () => {
+    if (paper.value) {
+      const arxivId = paper.value.arxiv_id
+      const cachedScore = paperStore.getCachedAIScore(arxivId)
+      if (cachedScore) {
+        // 检查是否有新内容或内容有变化
+        const currentScore = paper.value.ai_summary
+        if (!currentScore || JSON.stringify(currentScore) !== JSON.stringify(cachedScore)) {
+          paper.value.ai_summary = { ...cachedScore }
+        }
+      }
+    }
+  }
 )
 
 // 返回上一页
@@ -381,7 +417,7 @@ watch(
 }
 
 .error-message {
-  color: #ef4444;
+  color: #ff6b6b;
   margin-bottom: 1rem;
 }
 
@@ -389,12 +425,6 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-}
-
-/* 黑色风格卡片 */
-.paper-detail :deep(.card) {
-  background: #000000 !important;
-  color: #ffffff;
 }
 
 .paper-info-card {
@@ -418,7 +448,7 @@ watch(
   gap: 1rem;
   align-items: center;
   font-size: 0.875rem;
-  color: #cccccc;
+  color: #a0a0a0;
 }
 
 .paper-authors-section,
@@ -429,12 +459,12 @@ watch(
 .section-title {
   font-size: 1rem;
   font-weight: 600;
-  color: #ffffff;
+  color: #e0e0e0;
   margin: 0 0 0.75rem;
 }
 
 .authors-list {
-  color: #cccccc;
+  color: #c0c0c0;
   line-height: 1.6;
 }
 
@@ -446,8 +476,9 @@ watch(
 
 .category-tag {
   padding: 0.375rem 0.75rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: #000000;
+  color: #ffffff;
+  border: 2px solid #ffffff;
   border-radius: 0.375rem;
   font-size: 0.875rem;
   font-weight: 500;
@@ -458,6 +489,29 @@ watch(
   gap: 0.75rem;
   flex-wrap: wrap;
   margin-top: 2rem;
+}
+
+.paper-actions :deep(.btn-primary) {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border: 2px solid #ffffff !important;
+}
+
+.paper-actions :deep(.btn-primary:hover:not(:disabled)) {
+  background: #1a1a1a !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
+}
+
+.paper-actions :deep(.btn-outline) {
+  background: transparent !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+
+.paper-actions :deep(.btn-outline:hover:not(:disabled)) {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: none !important;
 }
 
 .paper-abstract-card {
@@ -472,7 +526,7 @@ watch(
 }
 
 .paper-abstract {
-  color: #cccccc;
+  color: #c0c0c0;
   line-height: 1.8;
   font-size: 1rem;
   white-space: pre-wrap;
@@ -496,8 +550,9 @@ watch(
   align-items: baseline;
   gap: 0.5rem;
   padding: 0.75rem 1.25rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: #000000;
+  color: #ffffff;
+  border: 2px solid #ffffff;
   border-radius: 0.5rem;
   font-weight: 600;
 }
@@ -507,7 +562,7 @@ watch(
 }
 
 .score-value {
-  font-size: 1.5rem;
+  font-size: 0.875rem;
   font-weight: 700;
 }
 
@@ -541,13 +596,13 @@ watch(
 
 .score-name {
   font-size: 0.9375rem;
-  color: #cccccc;
+  color: #c0c0c0;
   font-weight: 500;
 }
 
 .score-bar {
   height: 8px;
-  background: #333333;
+  background: #333;
   border-radius: 4px;
   overflow: hidden;
   position: relative;
@@ -557,14 +612,14 @@ watch(
   display: block;
   height: 100%;
   width: 0;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(90deg, #333 0%, #ffffff 100%);
   border-radius: 4px;
   transition: width 0.3s ease;
 }
 
 .score-number {
   font-size: 0.875rem;
-  color: #cccccc;
+  color: #a0a0a0;
   text-align: right;
   font-weight: 500;
 }
@@ -572,13 +627,13 @@ watch(
 .summary-section,
 .reasoning-section {
   padding: 1.5rem;
-  background: #1a1a1a;
+  background: #252525;
   border-radius: 0.5rem;
 }
 
 .summary-text,
 .reasoning-text {
-  color: #cccccc;
+  color: #c0c0c0;
   line-height: 1.8;
   margin: 0;
 }
@@ -603,7 +658,7 @@ watch(
 .weaknesses-list {
   margin: 0;
   padding-left: 1.5rem;
-  color: #cccccc;
+  color: #c0c0c0;
   line-height: 1.8;
 }
 
@@ -617,7 +672,7 @@ watch(
 
 .recommendation-section {
   padding: 1.5rem;
-  background: #1a1a1a;
+  background: #252525;
   border-radius: 0.5rem;
 }
 
@@ -630,19 +685,19 @@ watch(
 }
 
 .recommendation-badge.recommended {
-  background: #1a2a3a;
-  color: #60a5fa;
+  background: #1e3a5f;
+  color: #93c5fd;
 }
 
 .recommendation-badge.highly-recommended {
-  background: #1a2e1a;
-  color: #4ade80;
+  background: #1e4a2e;
+  color: #86efac;
 }
 
 .token-usage-section {
   margin-top: 1.5rem;
   padding-top: 1.5rem;
-  border-top: 1px solid #333333;
+  border-top: 1px solid #333;
 }
 
 .token-usage-details {
@@ -651,7 +706,7 @@ watch(
 
 .token-usage-summary {
   font-size: 0.875rem;
-  color: #cccccc;
+  color: #a0a0a0;
   font-weight: 500;
   list-style: none;
 }
@@ -682,7 +737,7 @@ watch(
   display: flex;
   justify-content: space-between;
   font-size: 0.875rem;
-  color: #cccccc;
+  color: #c0c0c0;
 }
 
 .ai-score-skeleton {
