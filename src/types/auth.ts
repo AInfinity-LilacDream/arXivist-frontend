@@ -35,7 +35,15 @@ export interface UserInfo {
   id: number
   email: string
   state: UserState
+  preferred_language: string
   created_at: string
+}
+
+/**
+ * 更新用户信息请求
+ */
+export interface UserUpdate {
+  preferred_language?: string | null
 }
 
 /**

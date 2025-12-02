@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
-    <div v-if="visible" class="dialog-overlay" @click="handleOverlayClick">
-      <div class="dialog-container" @click.stop>
+  <div v-if="visible" class="dialog-overlay" @click="handleOverlayClick">
+    <div class="dialog-container" @click.stop>
       <div class="dialog-header">
         <h3 class="dialog-title">添加到收藏夹</h3>
         <button class="dialog-close" @click="handleClose">×</button>
@@ -60,7 +60,7 @@
         </div>
       </div>
     </div>
-    </div>
+  </div>
   </Teleport>
 </template>
 

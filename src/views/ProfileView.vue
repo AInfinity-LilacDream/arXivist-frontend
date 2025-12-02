@@ -43,6 +43,12 @@
             <div class="profile-actions">
               <Button
                 variant="outline"
+                @click="handleSettings"
+              >
+                设置
+              </Button>
+              <Button
+                variant="outline"
                 @click="handleLogout"
               >
                 退出登录
@@ -106,6 +112,11 @@ const formatDate = (dateString: string): string => {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+// 打开设置页面
+const handleSettings = () => {
+  router.push('/settings')
 }
 
 // 退出登录

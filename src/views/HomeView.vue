@@ -79,10 +79,11 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { getPapers } from '@/api/services/paperService'
-import { getTodayString } from '@/utils/format'
+import { getTodayString, getWeekAgoString } from '@/utils/format'
 import { ARXIV_CATEGORIES, DEFAULT_MAX_RESULTS } from '@/utils/constants'
 import type { Paper, PaperQueryParams } from '@/types'
 import { usePaperStore } from '@/store/paper'
+import { usePreferencesStore } from '@/store/preferences'
 import MainLayout from '@/components/layout/MainLayout.vue'
 import Card from '@/components/common/Card.vue'
 import Button from '@/components/common/Button.vue'
@@ -90,6 +91,7 @@ import Select from '@/components/common/Select.vue'
 import PaperList from '@/components/paper/PaperList.vue'
 
 const paperStore = usePaperStore()
+const preferencesStore = usePreferencesStore()
 
 // 响应式数据
 const papers = ref<Paper[]>([])
@@ -98,7 +100,7 @@ const loadingDetails = ref(false)
 
 // 筛选条件
 const filters = ref({
-  startDate: getTodayString(),
+  startDate: getWeekAgoString(),
   category: '',
   maxResults: DEFAULT_MAX_RESULTS
 })
@@ -191,6 +193,39 @@ const sortPapersByScore = (papersList: Paper[]): Paper[] => {
   })
 }
 
+// 按照行优先的方式重新排列论文（用于双列布局）
+// 排序后：第一行第一个最高，第一行第二个次高，第二行第一个第三高...
+// 注意：CSS columns 是从上到下（列优先）填充的，所以数组需要按列优先排列，这样显示才是行优先
+const arrangeByColumns = (sortedPapers: Paper[], numColumns: number = 2): Paper[] => {
+  if (sortedPapers.length === 0) return []
+  
+  const result: Paper[] = []
+  const numRows = Math.ceil(sortedPapers.length / numColumns)
+  
+  // CSS columns 是列优先填充的（第一列从上到下，然后第二列从上到下）
+  // 要让显示结果是行优先（第一行从左到右，然后第二行从左到右）
+  // 数组需要按列优先排列：外层循环列，内层循环行
+  // 索引计算：第一列第一个是 rank1，第二列第一个是 rank2，第一列第二个是 rank3...
+  // 所以 originalIndex = row * numColumns + col
+  // 但这样会导致：第一列是 rank1, rank3, rank5...，第二列是 rank2, rank4, rank6...
+  // 显示为：第一行 rank1, rank2，第二行 rank3, rank4，第三行 rank5, rank6
+  // 这正是我们想要的行优先！
+  for (let col = 0; col < numColumns; col++) {
+    for (let row = 0; row < numRows; row++) {
+      // 计算原始排序数组中的索引（行优先索引）
+      const originalIndex = row * numColumns + col
+      if (originalIndex < sortedPapers.length) {
+        const paper = { ...sortedPapers[originalIndex] }
+        // 保存原始排名（行优先排名）
+        ;(paper as any)._displayRank = originalIndex + 1
+        result.push(paper)
+      }
+    }
+  }
+  
+  return result
+}
+
 // 合并论文基础信息和AI评分（从缓存中获取）
 const mergePaperWithAIScore = (paper: Paper): Paper => {
   const cachedScore = paperStore.getCachedAIScore(paper.arxiv_id)
@@ -220,24 +255,35 @@ const fetchPapers = async () => {
     const papersList = Array.isArray(result) ? result : []
     console.log('Papers list length:', papersList.length)
     
-    // 先显示论文列表（不等待AI评分）
+    // 先显示论文列表（不等待AI评分和翻译）
     papers.value = papersList
     
-    // 异步批量获取AI评分（不阻塞页面显示）
+    // 异步批量获取AI评分和翻译（不阻塞页面显示）
     loadingDetails.value = true
+    
+    // 批量获取AI评分
     paperStore.batchGetAIScores(papersList.map(p => p.arxiv_id))
       .then(() => {
         // AI评分加载完成后，合并信息并重新排序
         const papersWithScores = papersList.map(mergePaperWithAIScore)
-        papers.value = sortPapersByScore(papersWithScores)
+        const sorted = sortPapersByScore(papersWithScores)
+        papers.value = arrangeByColumns(sorted, 2)
       })
       .catch((error) => {
         console.error('Failed to batch fetch AI scores:', error)
         // 即使获取AI评分失败，也继续显示论文列表
       })
-      .finally(() => {
-        loadingDetails.value = false
-      })
+    
+    // 批量启动翻译任务
+    const targetLanguage = preferencesStore.preferredLanguage
+    paperStore.batchGetTranslations(
+      papersList.map(p => ({ arxiv_id: p.arxiv_id, summary: p.summary })),
+      targetLanguage
+    ).catch((error) => {
+      console.error('Failed to batch start translations:', error)
+    })
+    
+    loadingDetails.value = false
   } catch (error) {
     console.error('Failed to fetch papers:', error)
     papers.value = []
@@ -249,7 +295,7 @@ const fetchPapers = async () => {
 // 重置筛选条件
 const resetFilters = () => {
   filters.value = {
-    startDate: getTodayString(),
+    startDate: getWeekAgoString(),
     category: '',
     maxResults: DEFAULT_MAX_RESULTS
   }
@@ -262,10 +308,27 @@ watch(
   () => {
     if (papers.value.length > 0) {
       const papersWithScores = papers.value.map(mergePaperWithAIScore)
-      papers.value = sortPapersByScore(papersWithScores)
+      const sorted = sortPapersByScore(papersWithScores)
+      papers.value = arrangeByColumns(sorted, 2)
     }
   },
   { deep: true }
+)
+
+// 监听偏好语言变化，重新启动翻译任务
+watch(
+  () => preferencesStore.preferredLanguage,
+  (newLanguage) => {
+    if (papers.value.length > 0) {
+      // 重新启动翻译任务
+      paperStore.batchGetTranslations(
+        papers.value.map(p => ({ arxiv_id: p.arxiv_id, summary: p.summary })),
+        newLanguage
+      ).catch((error) => {
+        console.error('Failed to batch start translations:', error)
+      })
+    }
+  }
 )
 
 // 组件挂载时自动加载

@@ -96,3 +96,43 @@ export interface PaperListResponse {
     total: number
     date_range: string
 }
+
+/**
+ * 翻译请求
+ */
+export interface TranslationRequest {
+    text: string
+    source_language?: string // 源语言，默认为自动检测
+    target_language: string // 目标语言
+}
+
+/**
+ * 翻译响应
+ */
+export interface TranslationResponse {
+    original_text: string
+    translated_text: string
+    source_language?: string | null
+    target_language: string
+    token_usage?: TokenUsage | null
+}
+
+/**
+ * 翻译任务状态
+ */
+export interface TranslationTaskStatus {
+    task_id: string
+    status: 'pending' | 'processing' | 'completed' | 'failed'
+    result?: TranslationResponse | null
+    error_message?: string | null
+    created_at: string
+    completed_at?: string | null
+}
+
+/**
+ * 创建翻译任务响应
+ */
+export interface TranslationTaskCreate {
+    task_id: string
+    message: string
+}

@@ -1,5 +1,5 @@
 import apiClient from '../index'
-import type { Paper, PaperQueryParams, PaperListResponse, PaperDetail, AISummary, AIScoreTaskResponse, AIScoreTaskStatus } from '@/types'
+import type { Paper, PaperQueryParams, PaperListResponse, PaperDetail, AISummary, AIScoreTaskResponse, AIScoreTaskStatus, TranslationRequest, TranslationResponse, TranslationTaskStatus, TranslationTaskCreate } from '@/types'
 
 /**
  * 获取论文列表
@@ -68,6 +68,32 @@ export async function getAIScoreTaskStatus(taskId: string): Promise<AIScoreTaskS
         return response
     } catch (error) {
         console.error('Failed to get AI score task status:', error)
+        throw error
+    }
+}
+
+/**
+ * 启动异步翻译任务
+ */
+export async function startTranslationTask(request: TranslationRequest): Promise<TranslationTaskCreate> {
+    try {
+        const response = await apiClient.post<TranslationTaskCreate>('/papers/translate/async', request)
+        return response
+    } catch (error) {
+        console.error('Failed to start translation task:', error)
+        throw error
+    }
+}
+
+/**
+ * 获取翻译任务状态
+ */
+export async function getTranslationTaskStatus(taskId: string): Promise<TranslationTaskStatus> {
+    try {
+        const response = await apiClient.get<TranslationTaskStatus>(`/papers/translate/tasks/${taskId}`)
+        return response
+    } catch (error) {
+        console.error('Failed to get translation task status:', error)
         throw error
     }
 }

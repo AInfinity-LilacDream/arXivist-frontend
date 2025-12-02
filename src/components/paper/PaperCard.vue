@@ -32,13 +32,13 @@
       </div>
     </template>
 
-    <div class="paper-content">
+    <div ref="contentElement" class="paper-content">
       <div class="paper-authors">
         <span class="authors-label">作者：</span>
         <span class="authors-list">{{ paper.authors.join(', ') }}</span>
       </div>
 
-      <p class="paper-abstract" v-html="renderLatex(truncateText(paper.summary, 300))"></p>
+      <p ref="abstractElement" class="paper-abstract" v-html="renderLatex(truncateText(displaySummary, 300))"></p>
 
       <div v-if="paper.categories.length > 0" class="paper-categories">
         <span v-for="category in paper.categories" :key="category" class="category-tag">
@@ -72,11 +72,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { formatDate, truncateText } from '@/utils/format'
 import { renderLatex } from '@/utils/latex'
 import { usePaperStore } from '@/store/paper'
+import { usePreferencesStore } from '@/store/preferences'
 import Card from '@/components/common/Card.vue'
 import Button from '@/components/common/Button.vue'
 import Skeleton from '@/components/common/Skeleton.vue'
@@ -93,7 +94,13 @@ const props = withDefaults(defineProps<Props>(), {
 })
 const router = useRouter()
 const paperStore = usePaperStore()
+const preferencesStore = usePreferencesStore()
 const showCollectionDialog = ref(false)
+const translatedSummary = ref<string | null>(null)
+const translationCheckInterval = ref<ReturnType<typeof setInterval> | null>(null)
+const abstractElement = ref<HTMLElement | null>(null)
+const contentElement = ref<HTMLElement | null>(null)
+const isTransitioning = ref(false)
 
 // 检查评分是否正在加载
 const isLoadingScore = computed(() => {
@@ -110,6 +117,169 @@ const getDisplayScore = (paper: Paper): number | null => {
   }
   return null
 }
+
+// 获取显示的摘要（优先使用翻译后的摘要）
+const displaySummary = computed(() => {
+  if (translatedSummary.value) {
+    return translatedSummary.value
+  }
+  return props.paper.summary
+})
+
+// 加载翻译后的摘要
+const loadTranslation = async () => {
+  const targetLanguage = preferencesStore.preferredLanguage
+  
+  // 如果目标语言是中文，且摘要已经是中文，不需要翻译
+  if (targetLanguage === 'zh') {
+    const hasChinese = /[\u4e00-\u9fa5]/.test(props.paper.summary)
+    if (hasChinese) {
+      return
+    }
+  }
+  
+  // 检查缓存
+  const cached = paperStore.getCachedTranslation(props.paper.arxiv_id, targetLanguage)
+  if (cached) {
+    translatedSummary.value = cached
+    return
+  }
+  
+  // 检查是否正在加载
+  if (paperStore.isLoadingTranslation(props.paper.arxiv_id, targetLanguage)) {
+    // 清理之前的定时器
+    if (translationCheckInterval.value) {
+      clearInterval(translationCheckInterval.value)
+    }
+    
+    // 监听翻译缓存变化
+    translationCheckInterval.value = setInterval(() => {
+      const cached = paperStore.getCachedTranslation(props.paper.arxiv_id, targetLanguage)
+      if (cached) {
+        translatedSummary.value = cached
+        if (translationCheckInterval.value) {
+          clearInterval(translationCheckInterval.value)
+          translationCheckInterval.value = null
+        }
+      }
+      if (!paperStore.isLoadingTranslation(props.paper.arxiv_id, targetLanguage)) {
+        if (translationCheckInterval.value) {
+          clearInterval(translationCheckInterval.value)
+          translationCheckInterval.value = null
+        }
+      }
+    }, 100)
+    return
+  }
+  
+  // 启动翻译任务
+  try {
+    await paperStore.getTranslatedSummary(
+      props.paper.arxiv_id,
+      props.paper.summary,
+      targetLanguage
+    )
+  } catch (error) {
+    console.error('Failed to load translation:', error)
+  }
+}
+
+// 监听偏好语言变化
+watch(
+  () => preferencesStore.preferredLanguage,
+  () => {
+    translatedSummary.value = null
+    // 清理之前的定时器
+    if (translationCheckInterval.value) {
+      clearInterval(translationCheckInterval.value)
+      translationCheckInterval.value = null
+    }
+    loadTranslation()
+  }
+)
+
+// 监听翻译缓存变化
+watch(
+  () => paperStore.translationCache,
+  () => {
+    const targetLanguage = preferencesStore.preferredLanguage
+    const cached = paperStore.getCachedTranslation(props.paper.arxiv_id, targetLanguage)
+    if (cached) {
+      translatedSummary.value = cached
+    }
+  },
+  { deep: true }
+)
+
+// 监听摘要内容变化，实现平滑的高度过渡
+watch(
+  () => displaySummary.value,
+  async (newSummary, oldSummary) => {
+    // 如果内容没有实际变化，不需要动画
+    if (newSummary === oldSummary || !contentElement.value) {
+      return
+    }
+
+    // 如果元素还没有渲染，等待
+    if (!contentElement.value.offsetHeight) {
+      return
+    }
+
+    // 标记正在过渡
+    isTransitioning.value = true
+
+    // 获取当前高度
+    const currentHeight = contentElement.value.offsetHeight
+
+    // 临时设置固定高度，准备过渡
+    contentElement.value.style.height = `${currentHeight}px`
+    contentElement.value.style.overflow = 'hidden'
+
+    // 等待浏览器应用样式和 DOM 更新
+    await nextTick()
+    // 使用 requestAnimationFrame 确保浏览器已经渲染
+    await new Promise(resolve => requestAnimationFrame(resolve))
+
+    // 获取新内容的高度（使用 scrollHeight 获取完整内容高度）
+    const newHeight = contentElement.value.scrollHeight
+
+    // 如果高度相同或差异很小，不需要动画
+    if (Math.abs(newHeight - currentHeight) < 2) {
+      contentElement.value.style.height = ''
+      contentElement.value.style.overflow = ''
+      isTransitioning.value = false
+      return
+    }
+
+    // 触发重排，确保 transition 生效
+    void contentElement.value.offsetHeight
+
+    // 设置新高度，触发过渡动画
+    contentElement.value.style.height = `${newHeight}px`
+
+    // 等待动画完成
+    setTimeout(() => {
+      if (contentElement.value) {
+        contentElement.value.style.height = ''
+        contentElement.value.style.overflow = ''
+        isTransitioning.value = false
+      }
+    }, 500) // 与 CSS transition 时间一致
+  }
+)
+
+// 组件挂载时加载翻译
+onMounted(() => {
+  loadTranslation()
+})
+
+// 组件卸载时清理定时器
+onUnmounted(() => {
+  if (translationCheckInterval.value) {
+    clearInterval(translationCheckInterval.value)
+    translationCheckInterval.value = null
+  }
+})
 
 const openLink = (url: string) => {
   window.open(url, '_blank')
@@ -131,9 +301,11 @@ const handleAddSuccess = () => {
 
 <style scoped>
 .paper-card {
-  margin-bottom: 1.5rem;
   background: #000000 !important;
   color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease-in-out;
 }
 
 .paper-header {
@@ -214,6 +386,8 @@ const handleAddSuccess = () => {
 
 .paper-content {
   padding: 1rem 1.5rem;
+  transition: height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: height;
 }
 
 .paper-authors {
@@ -239,6 +413,21 @@ const handleAddSuccess = () => {
   line-height: 1.7;
   margin: 0 0 1rem;
   font-size: 0.9375rem;
+  transition: opacity 0.4s ease-in-out;
+}
+
+/* LaTeX 引用样式 */
+.paper-abstract :deep(.latex-cite),
+.paper-abstract :deep(.latex-ref) {
+  color: #a0a0a0;
+  font-size: 0.875em;
+  font-weight: 500;
+  vertical-align: baseline;
+  margin: 0 0.125em;
+}
+
+.paper-abstract :deep(.latex-cite) {
+  font-style: italic;
 }
 
 .paper-categories {

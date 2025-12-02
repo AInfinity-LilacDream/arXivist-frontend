@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { getPaperDetail, startAIScoreTask, getAIScoreTaskStatus } from '@/api/services/paperService'
-import type { PaperDetail, AISummary } from '@/types'
+import { getPaperDetail, startAIScoreTask, getAIScoreTaskStatus, startTranslationTask, getTranslationTaskStatus } from '@/api/services/paperService'
+import type { PaperDetail, AISummary, TranslationResponse } from '@/types'
+import { usePreferencesStore } from './preferences'
 
 export const usePaperStore = defineStore('paper', () => {
   // 论文详情缓存，key为arxiv_id
@@ -21,6 +22,18 @@ export const usePaperStore = defineStore('paper', () => {
   
   // 轮询间隔器，key为arxiv_id
   const pollingIntervals = ref<Map<string, ReturnType<typeof setInterval>>>(new Map())
+
+  // 翻译缓存，key为 `${arxiv_id}_${target_language}`，value为翻译后的摘要
+  const translationCache = ref<Map<string, string>>(new Map())
+  
+  // 正在加载翻译的论文ID集合，key为 `${arxiv_id}_${target_language}`
+  const loadingTranslations = ref<Set<string>>(new Set())
+  
+  // 正在轮询的翻译任务ID集合，key为 `${arxiv_id}_${target_language}`，value为task_id
+  const pollingTranslationTasks = ref<Map<string, string>>(new Map())
+  
+  // 翻译轮询间隔器，key为 `${arxiv_id}_${target_language}`
+  const pollingTranslationIntervals = ref<Map<string, ReturnType<typeof setInterval>>>(new Map())
 
   /**
    * 获取论文详情（优先从缓存获取）
@@ -248,23 +261,223 @@ export const usePaperStore = defineStore('paper', () => {
   }
 
   /**
+   * 轮询翻译任务状态
+   */
+  const pollTranslationTask = async (arxivId: string, targetLanguage: string, taskId: string, originalText: string): Promise<void> => {
+    const cacheKey = `${arxivId}_${targetLanguage}`
+    
+    const poll = async () => {
+      try {
+        const status = await getTranslationTaskStatus(taskId)
+        
+        if (status.status === 'completed' && status.result) {
+          // 任务完成，保存结果并停止轮询
+          translationCache.value.set(cacheKey, status.result.translated_text)
+          loadingTranslations.value.delete(cacheKey)
+          pollingTranslationTasks.value.delete(cacheKey)
+          
+          const interval = pollingTranslationIntervals.value.get(cacheKey)
+          if (interval) {
+            clearInterval(interval)
+            pollingTranslationIntervals.value.delete(cacheKey)
+          }
+        } else if (status.status === 'failed') {
+          // 任务失败，停止轮询
+          console.error(`Translation task failed for ${arxivId} (${targetLanguage}):`, status.error_message)
+          loadingTranslations.value.delete(cacheKey)
+          pollingTranslationTasks.value.delete(cacheKey)
+          
+          const interval = pollingTranslationIntervals.value.get(cacheKey)
+          if (interval) {
+            clearInterval(interval)
+            pollingTranslationIntervals.value.delete(cacheKey)
+          }
+        }
+        // pending 或 processing 状态继续轮询
+      } catch (error) {
+        console.error(`Failed to poll translation task for ${arxivId} (${targetLanguage}):`, error)
+        // 轮询失败，停止轮询
+        loadingTranslations.value.delete(cacheKey)
+        pollingTranslationTasks.value.delete(cacheKey)
+        
+        const interval = pollingTranslationIntervals.value.get(cacheKey)
+        if (interval) {
+          clearInterval(interval)
+          pollingTranslationIntervals.value.delete(cacheKey)
+        }
+      }
+    }
+
+    // 立即执行一次
+    await poll()
+    
+    // 设置轮询间隔（每2秒轮询一次）
+    const interval = setInterval(poll, 2000)
+    pollingTranslationIntervals.value.set(cacheKey, interval)
+  }
+
+  /**
+   * 启动异步翻译任务
+   */
+  const startTranslationTaskAsync = async (arxivId: string, text: string, targetLanguage: string): Promise<void> => {
+    const cacheKey = `${arxivId}_${targetLanguage}`
+    
+    // 如果缓存中有，直接返回
+    if (translationCache.value.has(cacheKey)) {
+      return
+    }
+
+    // 如果正在加载或轮询，不重复启动
+    if (loadingTranslations.value.has(cacheKey) || pollingTranslationTasks.value.has(cacheKey)) {
+      return
+    }
+
+    loadingTranslations.value.add(cacheKey)
+    
+    try {
+      const taskResponse = await startTranslationTask({
+        text,
+        source_language: 'auto',
+        target_language: targetLanguage
+      })
+      pollingTranslationTasks.value.set(cacheKey, taskResponse.task_id)
+      // 开始轮询
+      await pollTranslationTask(arxivId, targetLanguage, taskResponse.task_id, text)
+    } catch (error) {
+      console.error(`Failed to start translation task for ${arxivId} (${targetLanguage}):`, error)
+      loadingTranslations.value.delete(cacheKey)
+    }
+  }
+
+  /**
+   * 获取翻译后的摘要（优先从缓存获取，否则启动异步任务）
+   */
+  const getTranslatedSummary = async (arxivId: string, summary: string, targetLanguage: string): Promise<string | null> => {
+    const cacheKey = `${arxivId}_${targetLanguage}`
+    
+    // 如果缓存中有，直接返回
+    const cached = translationCache.value.get(cacheKey)
+    if (cached) {
+      return cached
+    }
+
+    // 如果目标语言是中文，且摘要已经是中文，不需要翻译
+    if (targetLanguage === 'zh') {
+      const hasChinese = /[\u4e00-\u9fa5]/.test(summary)
+      if (hasChinese) {
+        // 不需要翻译，直接返回null（表示使用原文）
+        return null
+      }
+    }
+
+    // 如果正在加载或轮询，等待完成
+    if (loadingTranslations.value.has(cacheKey) || pollingTranslationTasks.value.has(cacheKey)) {
+      return new Promise((resolve) => {
+        const checkInterval = setInterval(() => {
+          const cached = translationCache.value.get(cacheKey)
+          if (cached) {
+            clearInterval(checkInterval)
+            resolve(cached)
+          }
+          if (!loadingTranslations.value.has(cacheKey) && !pollingTranslationTasks.value.has(cacheKey)) {
+            clearInterval(checkInterval)
+            // 如果加载失败，返回null（使用原文）
+            resolve(null)
+          }
+        }, 100)
+      })
+    }
+
+    // 启动异步任务
+    await startTranslationTaskAsync(arxivId, summary, targetLanguage)
+    return null
+  }
+
+  /**
+   * 批量启动翻译任务
+   */
+  const batchGetTranslations = async (papers: Array<{ arxiv_id: string; summary: string }>, targetLanguage?: string): Promise<void> => {
+    const preferencesStore = usePreferencesStore()
+    const language = targetLanguage || preferencesStore.preferredLanguage
+    
+    // 过滤出需要启动任务的论文（不在缓存中的，且没有正在加载的，且需要翻译的）
+    const papersToTranslate = papers.filter(paper => {
+      const cacheKey = `${paper.arxiv_id}_${language}`
+      
+      // 如果已经在缓存中或正在加载，跳过
+      if (translationCache.value.has(cacheKey) || 
+          loadingTranslations.value.has(cacheKey) || 
+          pollingTranslationTasks.value.has(cacheKey)) {
+        return false
+      }
+      
+      // 如果目标语言是中文，且摘要已经是中文，不需要翻译
+      if (language === 'zh') {
+        const hasChinese = /[\u4e00-\u9fa5]/.test(paper.summary)
+        if (hasChinese) {
+          return false
+        }
+      }
+      
+      return true
+    })
+    
+    if (papersToTranslate.length === 0) {
+      return
+    }
+
+    // 批量启动任务（限制并发数，避免过多请求）
+    const batchSize = 10 // 每次并发10个任务
+    for (let i = 0; i < papersToTranslate.length; i += batchSize) {
+      const batch = papersToTranslate.slice(i, i + batchSize)
+      // 并行启动所有任务，不等待完成
+      Promise.allSettled(
+        batch.map(paper => startTranslationTaskAsync(paper.arxiv_id, paper.summary, language))
+      )
+    }
+  }
+
+  /**
+   * 获取缓存的翻译（不触发API调用）
+   */
+  const getCachedTranslation = (arxivId: string, targetLanguage: string): string | undefined => {
+    const cacheKey = `${arxivId}_${targetLanguage}`
+    return translationCache.value.get(cacheKey)
+  }
+
+  /**
+   * 检查是否正在加载翻译
+   */
+  const isLoadingTranslation = (arxivId: string, targetLanguage: string): boolean => {
+    const cacheKey = `${arxivId}_${targetLanguage}`
+    return loadingTranslations.value.has(cacheKey) || pollingTranslationTasks.value.has(cacheKey)
+  }
+
+  /**
    * 清除缓存
    */
   const clearCache = () => {
     paperDetailsCache.value.clear()
     aiScoreCache.value.clear()
+    translationCache.value.clear()
     // 清除所有轮询间隔器
     pollingIntervals.value.forEach(interval => clearInterval(interval))
     pollingIntervals.value.clear()
     pollingTasks.value.clear()
+    pollingTranslationIntervals.value.forEach(interval => clearInterval(interval))
+    pollingTranslationIntervals.value.clear()
+    pollingTranslationTasks.value.clear()
   }
 
   return {
     paperDetailsCache,
     aiScoreCache,
+    translationCache,
     loadingPapers,
     loadingAIScores,
+    loadingTranslations,
     pollingTasks,
+    pollingTranslationTasks,
     getPaperDetailCached,
     batchGetPaperDetails,
     updatePaperDetail,
@@ -273,6 +486,10 @@ export const usePaperStore = defineStore('paper', () => {
     batchGetAIScores,
     getCachedAIScore,
     startAIScoreTaskAsync,
+    getTranslatedSummary,
+    batchGetTranslations,
+    getCachedTranslation,
+    isLoadingTranslation,
     clearCache
   }
 })

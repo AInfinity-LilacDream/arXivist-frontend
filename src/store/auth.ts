@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { UserInfo, TokenResponse } from '@/types'
-import { login, logout, refreshToken, getCurrentUser, register, deleteCurrentUser as deleteUser } from '@/api/services/authService'
+import type { UserInfo, TokenResponse, UserUpdate } from '@/types'
+import { login, logout, refreshToken, getCurrentUser, register, updateCurrentUser, deleteCurrentUser as deleteUser } from '@/api/services/authService'
 import type { UserLogin, UserRegister } from '@/types'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -88,11 +88,52 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const userInfo = await getCurrentUser()
       user.value = userInfo
+      
+      // 如果用户信息中有偏好语言，同步到 preferences store
+      if (userInfo.preferred_language) {
+        try {
+          const { usePreferencesStore, LANGUAGE_MAP } = await import('./preferences')
+          const preferencesStore = usePreferencesStore()
+          if (userInfo.preferred_language in LANGUAGE_MAP) {
+            preferencesStore.setPreferredLanguage(userInfo.preferred_language as any)
+          }
+        } catch (e) {
+          // preferences store 可能还未初始化，忽略错误
+          console.warn('Failed to sync preferred language:', e)
+        }
+      }
+      
       return userInfo
     } catch (error) {
       console.error('Failed to load user:', error)
       // 如果获取用户信息失败，清除 token
       clearTokens()
+      throw error
+    }
+  }
+
+  // 更新用户信息
+  const updateUser = async (data: UserUpdate) => {
+    try {
+      const userInfo = await updateCurrentUser(data)
+      user.value = userInfo
+      
+      // 如果更新了偏好语言，同步到 preferences store
+      if (data.preferred_language !== undefined && userInfo.preferred_language) {
+        try {
+          const { usePreferencesStore, LANGUAGE_MAP } = await import('./preferences')
+          const preferencesStore = usePreferencesStore()
+          if (userInfo.preferred_language in LANGUAGE_MAP) {
+            preferencesStore.setPreferredLanguage(userInfo.preferred_language as any)
+          }
+        } catch (e) {
+          console.warn('Failed to sync preferred language:', e)
+        }
+      }
+      
+      return userInfo
+    } catch (error) {
+      console.error('Failed to update user:', error)
       throw error
     }
   }
@@ -122,6 +163,7 @@ export const useAuthStore = defineStore('auth', () => {
     logoutUser,
     refreshAccessToken,
     loadUser,
+    updateUser,
     clearTokens,
     deleteCurrentUser
   }

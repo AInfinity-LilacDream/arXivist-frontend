@@ -1,5 +1,5 @@
 import apiClient from '../index'
-import type { UserLogin, UserRegister, TokenResponse, UserInfo, RefreshTokenRequest } from '@/types'
+import type { UserLogin, UserRegister, TokenResponse, UserInfo, RefreshTokenRequest, UserUpdate } from '@/types'
 
 /**
  * 用户注册
@@ -121,6 +121,19 @@ export async function getCurrentUser(): Promise<UserInfo> {
     return response as unknown as UserInfo
   } catch (error) {
     console.error('Failed to get current user:', error)
+    throw error
+  }
+}
+
+/**
+ * 更新当前用户信息
+ */
+export async function updateCurrentUser(data: UserUpdate): Promise<UserInfo> {
+  try {
+    const response = await apiClient.put<UserInfo>('/auth/me', data)
+    return response as unknown as UserInfo
+  } catch (error) {
+    console.error('Failed to update current user:', error)
     throw error
   }
 }
