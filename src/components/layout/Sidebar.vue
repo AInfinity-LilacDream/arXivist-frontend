@@ -1,6 +1,6 @@
 <template>
-  <aside class="sidebar">
-    <nav class="sidebar-nav" :style="{ paddingTop: `${headerOffset}px` }">
+  <aside class="sidebar" :style="{ top: `${headerHeight}px`, height: `calc(100vh - ${headerHeight}px)` }">
+    <nav class="sidebar-nav">
       <router-link
         v-for="item in menuItems"
         :key="item.path"
@@ -32,21 +32,22 @@ import { useAuthStore } from '@/store/auth'
 const router = useRouter()
 const authStore = useAuthStore()
 
-const headerOffset = ref(150)
+const headerHeight = ref(78)
 
-const handleScroll = () => {
-  const scrollY = window.scrollY
-  // 当滚动超过150px时，菜单项顶到最上方
-  headerOffset.value = Math.max(0, 150 - scrollY)
+const updateHeaderHeight = () => {
+  const header = document.querySelector('.header') as HTMLElement
+  if (header) {
+    headerHeight.value = header.offsetHeight
+  }
 }
 
 onMounted(() => {
-  window.addEventListener('scroll', handleScroll)
-  handleScroll() // 初始化
+  updateHeaderHeight()
+  window.addEventListener('resize', updateHeaderHeight)
 })
 
 onUnmounted(() => {
-  window.removeEventListener('scroll', handleScroll)
+  window.removeEventListener('resize', updateHeaderHeight)
 })
 
 const handleLogout = async () => {
@@ -81,20 +82,18 @@ const menuItems = computed(() => [
 .sidebar {
   width: 240px;
   background: #000000;
-  height: 100vh;
   position: fixed;
   left: 0;
-  top: 0;
   display: flex;
   flex-direction: column;
   z-index: 5;
 }
 
 .sidebar-nav {
-  padding: 1.5rem 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0;
   flex: 1;
   overflow-y: auto;
 }

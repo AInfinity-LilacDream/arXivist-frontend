@@ -3,9 +3,12 @@
     <Header />
     <div class="layout-content">
       <Sidebar />
-      <main class="main-content-wrapper">
-        <slot />
-      </main>
+      <div class="main-content-area">
+        <slot name="filter-bar" />
+        <main class="main-content-wrapper">
+          <slot />
+        </main>
+      </div>
     </div>
   </div>
 </template>
@@ -26,17 +29,27 @@ import Sidebar from './Sidebar.vue'
   min-height: calc(100vh - 120px);
 }
 
-.main-content-wrapper {
+.main-content-area {
   flex: 1;
   margin-left: 240px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.main-content-wrapper {
+  flex: 1;
   padding: 1.5rem;
   padding-top: 50px;
   min-height: 100vh;
 }
 
 @media (max-width: 768px) {
-  .main-content-wrapper {
+  .main-content-area {
     margin-left: 200px;
+  }
+  
+  .main-content-wrapper {
     padding: 1rem;
     padding-top: 120px;
   }

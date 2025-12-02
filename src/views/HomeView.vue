@@ -1,59 +1,17 @@
 <template>
   <MainLayout>
+    <template #filter-bar>
+      <FilterBar
+        :filters="filters"
+        :loading="loading"
+        @update:filters="handleFiltersUpdate"
+        @search="fetchPapers"
+        @reset="resetFilters"
+      />
+    </template>
     <div class="home-view">
       <main class="main-content">
         <div class="container">
-          <!-- 筛选区域 -->
-          <div class="filters-section">
-            <Card>
-              <div class="filters-content">
-                <div class="filter-group">
-                  <label class="filter-label">开始日期</label>
-                  <input
-                    v-model="filters.startDate"
-                    type="date"
-                    class="date-input"
-                    :max="getTodayString()"
-                  />
-                </div>
-
-                <div class="filter-group">
-                  <label class="filter-label">论文分类</label>
-                  <Select
-                    v-model="filters.category"
-                    :options="categoryOptions"
-                  />
-                </div>
-
-                <div class="filter-group">
-                  <label class="filter-label">最大数量</label>
-                  <input
-                    v-model.number="filters.maxResults"
-                    type="number"
-                    class="number-input"
-                    min="1"
-                    max="2000"
-                  />
-                </div>
-
-                <div class="filter-actions">
-                  <button
-                    class="search-button"
-                    :disabled="loading"
-                    @click="fetchPapers"
-                  >
-                    <span class="search-icon">✓</span>
-                  </button>
-                  <Button
-                    variant="outline"
-                    @click="resetFilters"
-                  >
-                    重置
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          </div>
 
           <!-- 统计信息 -->
           <div v-if="papers.length > 0" class="stats-section">
@@ -85,9 +43,7 @@ import type { Paper, PaperQueryParams } from '@/types'
 import { usePaperStore } from '@/store/paper'
 import { usePreferencesStore } from '@/store/preferences'
 import MainLayout from '@/components/layout/MainLayout.vue'
-import Card from '@/components/common/Card.vue'
-import Button from '@/components/common/Button.vue'
-import Select from '@/components/common/Select.vue'
+import FilterBar from '@/components/layout/FilterBar.vue'
 import PaperList from '@/components/paper/PaperList.vue'
 
 const paperStore = usePaperStore()
@@ -102,14 +58,40 @@ const loadingDetails = ref(false)
 const filters = ref({
   startDate: getWeekAgoString(),
   category: '',
+  maxResults: DEFAULT_MAX_RESULTS,
+  scoreDimension: 'total' // 默认综合排序
+})
+
+// 保存上一次的筛选条件（用于判断是否需要重新拉取数据）
+const previousFilters = ref({
+  startDate: getWeekAgoString(),
+  category: '',
   maxResults: DEFAULT_MAX_RESULTS
 })
 
-// 分类选项
-const categoryOptions = ARXIV_CATEGORIES.map(cat => ({
-  label: cat.label,
-  value: cat.value
-}))
+// 处理筛选条件更新
+const handleFiltersUpdate = (newFilters: { startDate: string; category: string; maxResults: number; scoreDimension: string }) => {
+  const oldScoreDimension = filters.value.scoreDimension
+  filters.value = newFilters
+  
+  // 如果只是评分维度变化，且其他条件没变，只重排论文（不重新拉取）
+  const otherFiltersChanged = 
+    previousFilters.value.startDate !== newFilters.startDate ||
+    previousFilters.value.category !== newFilters.category ||
+    previousFilters.value.maxResults !== newFilters.maxResults
+  
+  if (!otherFiltersChanged && oldScoreDimension !== newFilters.scoreDimension && papers.value.length > 0) {
+    // 只重排论文，不重新拉取
+    reorderPapers()
+  } else if (otherFiltersChanged) {
+    // 其他条件变化，更新 previousFilters，等待 fetchPapers 调用
+    previousFilters.value = {
+      startDate: newFilters.startDate,
+      category: newFilters.category,
+      maxResults: newFilters.maxResults
+    }
+  }
+}
 
 // 获取分类标签
 const getCategoryLabel = (value: string): string => {
@@ -118,12 +100,28 @@ const getCategoryLabel = (value: string): string => {
 }
 
 // 获取评分值（用于排序）
-const getScoreValue = (paper: Paper): number => {
-  // 优先使用score，其次使用detail.total_score
-  if (paper.ai_summary?.score !== null && paper.ai_summary?.score !== undefined) {
-    return paper.ai_summary.score
+const getScoreValue = (paper: Paper, dimension: string = 'total'): number => {
+  const detail = paper.ai_summary?.detail
+  
+  switch (dimension) {
+    case 'innovation':
+      return detail?.innovation_score ?? 0
+    case 'technical_depth':
+      return detail?.technical_depth_score ?? 0
+    case 'practical_value':
+      return detail?.practical_value_score ?? 0
+    case 'experiments':
+      return detail?.experiments_score ?? 0
+    case 'writing':
+      return detail?.writing_score ?? 0
+    case 'total':
+    default:
+      // 优先使用score，其次使用detail.total_score
+      if (paper.ai_summary?.score !== null && paper.ai_summary?.score !== undefined) {
+        return paper.ai_summary.score
+      }
+      return detail?.total_score ?? 0
   }
-  return paper.ai_summary?.detail?.total_score ?? 0
 }
 
 // 获取各项评分值（用于排序）
@@ -145,10 +143,10 @@ const getScoreValues = (paper: Paper): {
 }
 
 // 对论文进行排序
-const sortPapersByScore = (papersList: Paper[]): Paper[] => {
+const sortPapersByScore = (papersList: Paper[], dimension: string = 'total'): Paper[] => {
   return [...papersList].sort((a, b) => {
-    const scoreA = getScoreValue(a)
-    const scoreB = getScoreValue(b)
+    const scoreA = getScoreValue(a, dimension)
+    const scoreB = getScoreValue(b, dimension)
     
     // 如果两个都没有评分，保持原顺序
     if (scoreA === 0 && scoreB === 0) {
@@ -159,12 +157,21 @@ const sortPapersByScore = (papersList: Paper[]): Paper[] => {
     if (scoreA === 0) return 1
     if (scoreB === 0) return -1
 
-    // 首先按总评分降序
+    // 按选中的维度评分降序
     if (scoreB !== scoreA) {
       return scoreB - scoreA
     }
 
-    // 总评分相同时，按各项评分依次排序
+    // 如果选中的维度评分相同，按综合评分作为次要排序
+    if (dimension !== 'total') {
+      const totalA = getScoreValue(a, 'total')
+      const totalB = getScoreValue(b, 'total')
+      if (totalB !== totalA) {
+        return totalB - totalA
+      }
+    }
+
+    // 如果综合评分也相同，按各项评分依次排序
     const scoresA = getScoreValues(a)
     const scoresB = getScoreValues(b)
 
@@ -191,6 +198,15 @@ const sortPapersByScore = (papersList: Paper[]): Paper[] => {
 
     return 0
   })
+}
+
+// 重排论文（不重新拉取数据）
+function reorderPapers() {
+  if (papers.value.length === 0) return
+  
+  const papersWithScores = papers.value.map(mergePaperWithAIScore)
+  const sorted = sortPapersByScore(papersWithScores, filters.value.scoreDimension)
+  papers.value = arrangeByColumns(sorted, 2)
 }
 
 // 按照行优先的方式重新排列论文（用于双列布局）
@@ -255,6 +271,13 @@ const fetchPapers = async () => {
     const papersList = Array.isArray(result) ? result : []
     console.log('Papers list length:', papersList.length)
     
+    // 更新 previousFilters
+    previousFilters.value = {
+      startDate: filters.value.startDate,
+      category: filters.value.category,
+      maxResults: filters.value.maxResults
+    }
+    
     // 先显示论文列表（不等待AI评分和翻译）
     papers.value = papersList
     
@@ -266,7 +289,7 @@ const fetchPapers = async () => {
       .then(() => {
         // AI评分加载完成后，合并信息并重新排序
         const papersWithScores = papersList.map(mergePaperWithAIScore)
-        const sorted = sortPapersByScore(papersWithScores)
+        const sorted = sortPapersByScore(papersWithScores, filters.value.scoreDimension)
         papers.value = arrangeByColumns(sorted, 2)
       })
       .catch((error) => {
@@ -297,6 +320,12 @@ const resetFilters = () => {
   filters.value = {
     startDate: getWeekAgoString(),
     category: '',
+    maxResults: DEFAULT_MAX_RESULTS,
+    scoreDimension: 'total'
+  }
+  previousFilters.value = {
+    startDate: getWeekAgoString(),
+    category: '',
     maxResults: DEFAULT_MAX_RESULTS
   }
   papers.value = []
@@ -308,7 +337,7 @@ watch(
   () => {
     if (papers.value.length > 0) {
       const papersWithScores = papers.value.map(mergePaperWithAIScore)
-      const sorted = sortPapersByScore(papersWithScores)
+      const sorted = sortPapersByScore(papersWithScores, filters.value.scoreDimension)
       papers.value = arrangeByColumns(sorted, 2)
     }
   },
@@ -352,213 +381,6 @@ onMounted(() => {
   padding: 0;
 }
 
-.filters-section {
-  margin-bottom: 2rem;
-}
-
-.filters-section :deep(.card) {
-  background: #000000 !important;
-  color: #ffffff;
-}
-
-.filters-section :deep(.select) {
-  border: 2px solid #333333;
-  background: #1a1a1a;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.5rem center;
-  background-size: 1.5em 1.5em;
-  color: #ffffff;
-}
-
-.filters-section :deep(.select:hover:not(:disabled)) {
-  border-color: #555555;
-}
-
-.filters-section :deep(.select:focus) {
-  border-color: #ffffff;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
-}
-
-.filters-section :deep(.select option) {
-  background: #1a1a1a;
-  color: #ffffff;
-}
-
-.filters-section :deep(.btn-outline) {
-  background: transparent;
-  border: 2px solid #ffffff;
-  color: #ffffff;
-}
-
-.filters-section :deep(.btn-outline:hover:not(:disabled)) {
-  background: #1a1a1a;
-  border-color: #ffffff;
-  color: #ffffff;
-}
-
-.filters-content {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-  align-items: center;
-}
-
-.filter-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.filter-label {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #ffffff;
-}
-
-.date-input,
-.number-input {
-  padding: 0.5rem 1rem;
-  border: 2px solid #333333;
-  border-radius: 0.5rem;
-  font-size: 1rem;
-  transition: all 0.2s;
-  background: #1a1a1a;
-  color: #ffffff;
-}
-
-/* 修改日期选择器的日历图标为白色 */
-.date-input::-webkit-calendar-picker-indicator {
-  filter: invert(1);
-  cursor: pointer;
-}
-
-.date-input::-webkit-calendar-picker-indicator:hover {
-  opacity: 0.8;
-}
-
-.date-input:hover,
-.number-input:hover {
-  border-color: #555555;
-}
-
-.date-input:focus,
-.number-input:focus {
-  outline: none;
-  border-color: #ffffff;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
-}
-
-.date-input::placeholder,
-.number-input::placeholder {
-  color: #666666;
-}
-
-/* 美化数字输入框的spinner控件 */
-.number-input {
-  padding-right: 0.4rem;
-}
-
-.number-input::-webkit-inner-spin-button {
-  opacity: 0;
-  height: 100%;
-  min-height: 2.5rem;
-  width: 1.5rem;
-  cursor: pointer;
-  background: #1a1a1a;
-  border: none;
-  margin-right: 0.0625rem;
-  background-image: 
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath stroke='%23ffffff' stroke-width='1.5' stroke-linecap='round' d='M2.5 7.5l2.5-2.5 2.5 2.5'/%3E%3C/svg%3E"),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath stroke='%23ffffff' stroke-width='1.5' stroke-linecap='round' d='M2.5 2.5l2.5 2.5 2.5-2.5'/%3E%3C/svg%3E");
-  background-size: 0.625rem 0.625rem;
-  background-position: center 0.375rem, center calc(100% - 0.375rem);
-  background-repeat: no-repeat;
-  transition: opacity 0.2s;
-}
-
-.number-input:hover::-webkit-inner-spin-button {
-  opacity: 1;
-}
-
-.number-input::-webkit-inner-spin-button:hover {
-  background-color: #2a2a2a;
-}
-
-.number-input::-webkit-outer-spin-button {
-  opacity: 0;
-}
-
-/* Firefox */
-.number-input[type="number"] {
-  -moz-appearance: textfield;
-  appearance: textfield;
-}
-
-.number-input::-moz-number-spin-box {
-  opacity: 1;
-  border: none;
-  width: 1.5rem;
-  background: #1a1a1a;
-}
-
-.number-input::-moz-number-spin-up,
-.number-input::-moz-number-spin-down {
-  background: #1a1a1a;
-  border: none;
-  color: #ffffff;
-  opacity: 1;
-  width: 100%;
-  height: 50%;
-  font-size: 0.5rem;
-}
-
-.number-input::-moz-number-spin-up:hover,
-.number-input::-moz-number-spin-down:hover {
-  background-color: #2a2a2a;
-}
-
-.filter-actions {
-  display: flex;
-  gap: 0.75rem;
-  grid-column: 1 / -1;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-.search-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  padding: 0;
-  border: none;
-  border-radius: 0.5rem;
-  background: #000000;
-  color: #ffffff;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 1.25rem;
-}
-
-.search-button:hover:not(:disabled) {
-  background: #1a1a1a;
-}
-
-.search-button:focus {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
-}
-
-.search-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.search-icon {
-  display: inline-block;
-}
 
 .stats-section {
   margin-bottom: 1.5rem;
